@@ -261,7 +261,7 @@ def _poly_trim(f):
 
 def _poly_add(a, b, p):
     n = max(len(a), len(b))
-    return _poly_trim([(a[i] if i < len(a) else 0) + (b[i] if i < len(b) else 0) for i in range(n)])
+    return _poly_trim([((a[i] if i < len(a) else 0) + (b[i] if i < len(b) else 0)) % p for i in range(n)])
 
 
 def _poly_sub(a, b, p):
@@ -368,10 +368,8 @@ def _poly_is_irreducible(f, p):
     # x as polynomial: [0, 1]
     x_poly = [0, 1]
     xpn = x_poly[:]
-    pn = p
     for _ in range(n):
         xpn = _poly_pow_mod(xpn, p, f_monic, p)
-        pn *= p
     # x^(p^n) should equal x mod f
     xpn_mod = _poly_mod(xpn, f_monic, p)
     if _poly_trim(xpn_mod) != _poly_trim(x_poly):
@@ -437,6 +435,7 @@ def _extract_linear_factors(f, p):
     inv_lead = pow(f[-1], -1, p)
     f = [(c * inv_lead) % p for c in f]
 
+    # Deterministic seed ensures reproducible factoring across runs.
     rng = _random.Random(42)
     x_poly = [0, 1]
     while True:
