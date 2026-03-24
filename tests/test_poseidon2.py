@@ -62,10 +62,10 @@ class TestExternalLayer:
         for x in result:
             assert 0 <= x < BN254_P
 
-    def test_t3_zero_state_changes(self):
-        # Zero state should not stay zero (constants in M_E are > 0)
+    def test_t3_zero_state_is_fixed_point(self):
+        # The external layer is a linear map: zero state maps to zero state.
         result = _external_layer([0, 0, 0], BN254_P)
-        assert result == [0, 0, 0]  # zero state is fixed point for linear layer
+        assert result == [0, 0, 0]
 
     def test_t3_deterministic(self):
         s = [7, 13, 42]
