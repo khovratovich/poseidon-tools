@@ -436,9 +436,11 @@ def _extract_linear_factors(f, p):
     f = [(c * inv_lead) % p for c in f]
 
     # Deterministic seed ensures reproducible factoring across runs.
+    # Cantor-Zassenhaus succeeds with probability ~1/2 per attempt for odd prime p;
+    # 100 attempts gives a failure probability below 2^{-100}.
     rng = _random.Random(42)
     x_poly = [0, 1]
-    while True:
+    for _ in range(100):
         a = rng.randrange(0, p)
         # h = (x + a)^((p-1)//2) mod f
         xa = [(a % p), 1]  # x + a
@@ -450,6 +452,9 @@ def _extract_linear_factors(f, p):
         if 0 < dg < deg:
             f_div_g, _ = _poly_divmod(f, g, p)
             return _extract_linear_factors(g, p) + _extract_linear_factors(f_div_g, p)
+    raise RuntimeError(  # pragma: no cover
+        f"Cantor-Zassenhaus failed to factor polynomial of degree {deg} after 100 attempts"
+    )
 
 
 # ---------------------------------------------------------------------------

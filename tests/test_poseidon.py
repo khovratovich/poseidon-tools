@@ -263,7 +263,7 @@ def _det_mod(matrix, prime):
 KOALABEAR_P = 2130706433  # 2^31 - 2^24 + 1
 
 # Prime where the t=3 Cauchy MDS matrix passes all security checks
-_SMALL_PRIME_FOR_MDS_TEST = 1009  # Cauchy t=3 is fully verified for this prime
+SMALL_PRIME_FOR_MDS_TEST = 1009  # Cauchy t=3 is fully verified for this prime
 
 
 # ---------------------------------------------------------------------------
@@ -274,8 +274,8 @@ class TestVerifyMDSMatrix:
     def test_cauchy_mds_t3_passes_all_checks(self):
         # For p=1009 the Cauchy t=3 MDS has an irreducible char poly for all
         # required powers, so verify_mds_matrix returns True.
-        mds = generate_mds_matrix(3, _SMALL_PRIME_FOR_MDS_TEST)
-        assert verify_mds_matrix(mds, _SMALL_PRIME_FOR_MDS_TEST) is True
+        mds = generate_mds_matrix(3, SMALL_PRIME_FOR_MDS_TEST)
+        assert verify_mds_matrix(mds, SMALL_PRIME_FOR_MDS_TEST) is True
 
     def test_cauchy_mds_t3_bn254_minpoly_fails(self):
         # The BN254 Cauchy t=3 matrix has an eigenvalue in GF(p), making its
