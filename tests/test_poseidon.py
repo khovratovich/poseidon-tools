@@ -13,7 +13,16 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
 from poseidon.grain_lfsr import GrainLFSR
-from poseidon.mds_matrix import generate_mds_matrix, apply_mds, verify_mds_matrix, generate_circulant_mds_matrix
+from poseidon.mds_matrix import (
+    generate_mds_matrix,
+    apply_mds,
+    verify_mds_matrix,
+    generate_circulant_mds_matrix,
+    _algorithm_1,
+    _algorithm_2,
+    _algorithm_3,
+    _check_minpoly,
+)
 from poseidon.poseidon import Poseidon
 
 # ---------------------------------------------------------------------------
@@ -713,3 +722,131 @@ class TestLeanSpecKoalaBear:
                 mds=mds,
                 round_constants=[0] * 10,  # wrong length
             )
+
+
+# ---------------------------------------------------------------------------
+# Plonky3 KoalaBear matrix security checks
+# ---------------------------------------------------------------------------
+
+class TestPlonky3MatrixSecurity:
+    """
+    Verify Poseidon security properties of the Plonky3 KoalaBear circulant MDS
+    matrices (widths 16 and 24) from koala-bear/src/mds.rs.
+
+    Four properties are checked for each matrix:
+
+    1. Algorithm 1 (no subspace-trail type 1): for each i=1..t-1 the vector
+       space S_i must not be mapped into itself by M^j for j=1..i, and the
+       intersection of S_i with every eigenspace of M^i must be trivial or
+       the full space.  Both matrices pass.
+
+    2. Algorithm 2 (invariant subspace from e_0): starting from e_0 the orbit
+       {e_0, M*e_0, M^2*e_0, ...} must span GF(p)^t.  Both matrices pass.
+
+    3. Algorithm 3 (Algorithm 2 applied to M^r for r=2..4t): no power of M
+       up to the 4t-th may admit a non-trivial invariant subspace reachable
+       from e_0.  Both matrices pass.
+
+    4. Minimal-polynomial criterion (_check_minpoly): the characteristic
+       polynomial of M^i must be irreducible of degree t over GF(p) for all
+       i = 1, …, 2t.  The KoalaBear prime satisfies p-1 = 2^24 × 127, so
+       GF(p) contains primitive 16th roots of unity.  Consequently the
+       width-16 circulant is diagonalisable over GF(p) itself and its char
+       poly splits into linear factors — the criterion fails for both widths.
+       This is expected: the Plonky3 matrices were designed for performance,
+       not for Poseidon's strict minpoly requirement.
+    """
+
+    def _make_m16(self):
+        return generate_circulant_mds_matrix(_KB_MDS_FIRST_ROW_16, KOALABEAR_P)
+
+    def _make_m24(self):
+        return generate_circulant_mds_matrix(_KB_MDS_FIRST_ROW_24, KOALABEAR_P)
+
+    # --- Algorithm 1 (no subspace-trail type 1) ---
+
+    def test_m16_algorithm1_passes(self):
+        """Width-16 matrix: no subspace-trail type-1 vulnerability (Algorithm 1)."""
+        result = _algorithm_1(self._make_m16(), 16, KOALABEAR_P)
+        assert result[0] is True
+
+    def test_m24_algorithm1_passes(self):
+        """Width-24 matrix: no subspace-trail type-1 vulnerability (Algorithm 1)."""
+        result = _algorithm_1(self._make_m24(), 24, KOALABEAR_P)
+        assert result[0] is True
+
+    def test_m16_algorithm1_reason_is_zero(self):
+        """When Algorithm 1 passes the reason code is 0."""
+        result = _algorithm_1(self._make_m16(), 16, KOALABEAR_P)
+        assert result[1] == 0
+
+    def test_m24_algorithm1_reason_is_zero(self):
+        """When Algorithm 1 passes the reason code is 0."""
+        result = _algorithm_1(self._make_m24(), 24, KOALABEAR_P)
+        assert result[1] == 0
+
+    # --- Algorithm 2 (invariant subspace from e_0) ---
+
+    def test_m16_no_invariant_subspace(self):
+        """Width-16 matrix: orbit of e_0 under M spans GF(p)^16 (passes Algorithm 2)."""
+        result = _algorithm_2(self._make_m16(), 16, KOALABEAR_P)
+        assert result[0] is True
+
+    def test_m24_no_invariant_subspace(self):
+        """Width-24 matrix: orbit of e_0 under M spans GF(p)^24 (passes Algorithm 2)."""
+        result = _algorithm_2(self._make_m24(), 24, KOALABEAR_P)
+        assert result[0] is True
+
+    def test_m16_no_invariant_subspace_returns_none_info(self):
+        """When Algorithm 2 passes the auxiliary info field is None."""
+        result = _algorithm_2(self._make_m16(), 16, KOALABEAR_P)
+        assert result[1] is None
+
+    def test_m24_no_invariant_subspace_returns_none_info(self):
+        """When Algorithm 2 passes the auxiliary info field is None."""
+        result = _algorithm_2(self._make_m24(), 24, KOALABEAR_P)
+        assert result[1] is None
+
+    # --- Algorithm 3 (Algorithm 2 applied to M^r for r=2..4t) ---
+
+    def test_m16_algorithm3_passes(self):
+        """Width-16 matrix: no invariant subspace for any power M^r, r=2..64 (Algorithm 3)."""
+        result = _algorithm_3(self._make_m16(), 16, KOALABEAR_P)
+        assert result[0] is True
+
+    def test_m24_algorithm3_passes(self):
+        """Width-24 matrix: no invariant subspace for any power M^r, r=2..96 (Algorithm 3)."""
+        result = _algorithm_3(self._make_m24(), 24, KOALABEAR_P)
+        assert result[0] is True
+
+    def test_m16_algorithm3_returns_none_info(self):
+        """When Algorithm 3 passes the auxiliary info field is None."""
+        result = _algorithm_3(self._make_m16(), 16, KOALABEAR_P)
+        assert result[1] is None
+
+    def test_m24_algorithm3_returns_none_info(self):
+        """When Algorithm 3 passes the auxiliary info field is None."""
+        result = _algorithm_3(self._make_m24(), 24, KOALABEAR_P)
+        assert result[1] is None
+
+    # --- Minimal polynomial criterion ---
+
+    def test_m16_minpoly_fails_poseidon_criterion(self):
+        """
+        Width-16 matrix: char poly of M is reducible over GF(p).
+
+        Because 16 | p-1 = 2^24 × 127, all 16th roots of unity lie in GF(p).
+        The circulant eigenvalues are therefore elements of GF(p), the char poly
+        splits into linear factors, and the Poseidon minpoly criterion fails.
+        """
+        assert _check_minpoly(self._make_m16(), 16, KOALABEAR_P) is False
+
+    def test_m24_minpoly_fails_poseidon_criterion(self):
+        """
+        Width-24 matrix: char poly of M is reducible over GF(p).
+
+        Although 24 ∤ p-1 (since 3 ∤ 127), the characteristic polynomial of the
+        width-24 circulant still factors into polynomials of degree < 24 over
+        GF(p), so the Poseidon minpoly criterion fails here too.
+        """
+        assert _check_minpoly(self._make_m24(), 24, KOALABEAR_P) is False
