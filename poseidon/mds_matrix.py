@@ -34,6 +34,29 @@ def generate_mds_matrix(t: int, prime: int) -> list:
     return mds
 
 
+def generate_circulant_mds_matrix(first_row: list, prime: int) -> list:
+    """
+    Generate a t×t circulant MDS matrix from its first row over GF(prime).
+
+    The circulant matrix is defined by:
+        MDS[i][j] = first_row[(j - i) % t] % prime
+
+    This construction is used by Plonky3 and the leanSpec Poseidon1 reference.
+
+    Args:
+        first_row: First row of the circulant matrix (length t).
+        prime: Prime field modulus.
+
+    Returns:
+        A t×t list-of-lists of integers in GF(prime).
+    """
+    t = len(first_row)
+    return [
+        [first_row[(j - i) % t] % prime for j in range(t)]
+        for i in range(t)
+    ]
+
+
 def apply_mds(state: list, mds: list, prime: int) -> list:
     """
     Apply an MDS matrix to a state vector over GF(prime).

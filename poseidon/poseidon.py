@@ -36,6 +36,11 @@ class Poseidon:
         r_f: Number of full rounds (must be even).
         r_p: Number of partial rounds.
         rate: Absorb rate in field elements.  Defaults to t-1 (capacity 1).
+        mds: Optional custom t×t MDS matrix as list-of-lists.  When omitted
+            the Cauchy MDS construction is used.
+        round_constants: Optional flat list of (r_f + r_p)*t pre-computed
+            round constants.  When omitted, constants are derived from the
+            Grain LFSR.
     """
 
     def __init__(
@@ -46,6 +51,8 @@ class Poseidon:
         r_f: int,
         r_p: int,
         rate: int = None,
+        mds: list = None,
+        round_constants: list = None,
     ):
         if r_f % 2 != 0:
             raise ValueError("r_f must be even")
@@ -57,18 +64,28 @@ class Poseidon:
         self.rate = rate if rate is not None else t - 1
         self.capacity = t - self.rate
 
-        prime_bit_len = prime.bit_length()
-
-        lfsr = GrainLFSR(prime_bit_len, alpha, t, r_f, r_p)
-
-        # Generate all round constants: (r_f + r_p) rounds, each with t constants
         total_rounds = r_f + r_p
-        self.round_constants = [
-            [lfsr.get_field_element(prime) for _ in range(t)]
-            for _ in range(total_rounds)
-        ]
 
-        self.mds = generate_mds_matrix(t, prime)
+        if round_constants is not None:
+            # Accept a flat list of (r_f + r_p)*t constants and reshape.
+            expected = total_rounds * t
+            if len(round_constants) != expected:
+                raise ValueError(
+                    f"round_constants must have {expected} elements, got {len(round_constants)}"
+                )
+            self.round_constants = [
+                list(round_constants[i * t : (i + 1) * t])
+                for i in range(total_rounds)
+            ]
+        else:
+            prime_bit_len = prime.bit_length()
+            lfsr = GrainLFSR(prime_bit_len, alpha, t, r_f, r_p)
+            self.round_constants = [
+                [lfsr.get_field_element(prime) for _ in range(t)]
+                for _ in range(total_rounds)
+            ]
+
+        self.mds = mds if mds is not None else generate_mds_matrix(t, prime)
 
     # ------------------------------------------------------------------
     # Internal helpers
