@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
 from poseidon.grain_lfsr import GrainLFSR
-from poseidon.mds_matrix import generate_mds_matrix, apply_mds
+from poseidon.mds_matrix import generate_mds_matrix, apply_mds, verify_mds_matrix
 from poseidon.poseidon import Poseidon
 
 # ---------------------------------------------------------------------------
@@ -254,3 +254,56 @@ def _det_mod(matrix, prime):
             for k in range(col, n):
                 mat[row][k] = (mat[row][k] - factor * mat[col][k]) % prime
     return det % prime
+
+
+# ---------------------------------------------------------------------------
+# KoalaBear field constants
+# ---------------------------------------------------------------------------
+
+KOALABEAR_P = 2130706433  # 2^31 - 2^24 + 1
+
+# Prime where the t=3 Cauchy MDS matrix passes all security checks
+_SMALL_PRIME_FOR_MDS_TEST = 1009  # Cauchy t=3 is fully verified for this prime
+
+
+# ---------------------------------------------------------------------------
+# verify_mds_matrix tests
+# ---------------------------------------------------------------------------
+
+class TestVerifyMDSMatrix:
+    def test_cauchy_mds_t3_passes_all_checks(self):
+        # For p=1009 the Cauchy t=3 MDS has an irreducible char poly for all
+        # required powers, so verify_mds_matrix returns True.
+        mds = generate_mds_matrix(3, _SMALL_PRIME_FOR_MDS_TEST)
+        assert verify_mds_matrix(mds, _SMALL_PRIME_FOR_MDS_TEST) is True
+
+    def test_cauchy_mds_t3_bn254_minpoly_fails(self):
+        # The BN254 Cauchy t=3 matrix has an eigenvalue in GF(p), making its
+        # characteristic polynomial reducible.  The minpoly check therefore
+        # fails and verify_mds_matrix returns False.
+        mds = generate_mds_matrix(3, BN254_P)
+        assert verify_mds_matrix(mds, BN254_P) is False
+
+
+# ---------------------------------------------------------------------------
+# KoalaBear tests
+# ---------------------------------------------------------------------------
+
+class TestKoalaBear:
+    def _make_poseidon(self):
+        return Poseidon(KOALABEAR_P, alpha=3, t=16, r_f=8, r_p=20)
+
+    def test_hash_known_vectors(self):
+        pos = self._make_poseidon()
+        assert pos.hash(list(range(15))) == 93555670
+        assert pos.hash(list(range(1, 16))) == 938201807
+        assert pos.hash([1]) == 1541345887
+
+    def test_permutation_known_vector(self):
+        pos = self._make_poseidon()
+        assert pos.permutation([0] * 16)[0] == 1393439926
+
+    def test_hash_output_in_field(self):
+        pos = self._make_poseidon()
+        h = pos.hash([42])
+        assert 0 <= h < KOALABEAR_P

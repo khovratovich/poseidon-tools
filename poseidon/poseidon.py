@@ -2,6 +2,19 @@
 Poseidon permutation and hash function (pure Python).
 
 Reference: https://eprint.iacr.org/2019/458
+
+Example (KoalaBear field, t=16, R_F=8, R_P=20):
+    >>> from poseidon.poseidon import Poseidon
+    >>> KOALABEAR_P = 2130706433  # 2^31 - 2^24 + 1
+    >>> pos = Poseidon(prime=KOALABEAR_P, alpha=3, t=16, r_f=8, r_p=20)
+    >>> pos.hash(list(range(15)))
+    93555670
+    >>> pos.hash(list(range(1, 16)))
+    938201807
+    >>> pos.hash([1])
+    1541345887
+    >>> pos.permutation([0] * 16)[0]
+    1393439926
 """
 
 from .grain_lfsr import GrainLFSR
