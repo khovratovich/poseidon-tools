@@ -53,7 +53,7 @@ DENSITY_TPERM = 16        # Poseidon1 compression mode 16->16
 #               pow(148625052,  8, 2130706433) == 2130706432  (≠ 1)
 _OMEGA = 148625052
 _OMEGA_TABLE: dict[int, int] = {
-    pow(_OMEGA, e, DENSITY_P): e for e in range(DENSITY_R - 1)
+    pow(_OMEGA, e, DENSITY_P): e for e in range(DENSITY_R)
 }
 
 
@@ -65,7 +65,7 @@ def decode(x: int, prime: int = DENSITY_P, r: int = DENSITY_R) -> int:
     """
     Apply the Decode function to a single field element.
 
-    Decode(x) = log_ω( x^((p-1)//(r-1)) )  mod (r-1)
+    Decode(x) = log_ω( x^((p-1)//r) )  mod r
 
     For the bounty instance (r=16, ω=148625052) a precomputed O(1) lookup
     table is used.  For other parameters a KeyError will be raised if x does
@@ -83,7 +83,7 @@ def decode(x: int, prime: int = DENSITY_P, r: int = DENSITY_R) -> int:
     x = x % prime
     if x == 0:
         return 0
-    order = r - 1
+    order = r
     y = pow(x, (prime - 1) // order, prime)
     return _OMEGA_TABLE[y]
 
@@ -125,12 +125,14 @@ def verify_density_solution(
         True iff all four conditions (C1–C4) are satisfied.
 
     Raises:
-        ValueError: if S has the wrong length, or t > k*ell.
+        ValueError: if S has the wrong length, or t > k*ell, or ell>t_perm.
     """
     if len(S) != r:
         raise ValueError(f"S must have length r={r}, got {len(S)}")
     if t > k * ell:
         raise ValueError(f"t={t} exceeds k*ell={k * ell}")
+    if ell > t_perm:
+        raise ValueError(f"ell={ell} exceeds t_perm={t_perm}")
 
     p = prime
 
