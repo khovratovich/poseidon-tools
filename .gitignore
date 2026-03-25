@@ -205,3 +205,8 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+bounties/docs/bounty2026.aux
+bounties/docs/bounty2026.bbl
+bounties/docs/bounty2026.fdb_latexmk
+bounties/docs/bounty2026.fls
+bounties/docs/bounty2026.synctex.gz

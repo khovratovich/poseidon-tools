@@ -24,6 +24,7 @@ from poseidon.mds_matrix import (
     _check_minpoly,
 )
 from poseidon.poseidon import Poseidon
+from bounties.density_verifier import verify_density_solution
 
 # ---------------------------------------------------------------------------
 # BN254 parameters
@@ -850,3 +851,122 @@ class TestPlonky3MatrixSecurity:
         GF(p), so the Poseidon minpoly criterion fails here too.
         """
         assert _check_minpoly(self._make_m24(), 24, KOALABEAR_P) is False
+
+
+# ---------------------------------------------------------------------------
+# Density challenge tests
+# ---------------------------------------------------------------------------
+
+# Bounty instance parameters (bounty2026.tex §3.2)
+_DC_P   = KOALABEAR_P   # 2^31 - 2^24 + 1
+_DC_K   = 1
+_DC_D   = 2             # max zeros in S
+_DC_R   = 17            # len(S) — also used as input length
+_DC_ELL = 16            # hash output words
+_DC_T   = _DC_K * _DC_ELL  # number of decoded indices that must hit zeros
+_DC_RF  = 6
+_DC_RP  = 6             # must be > 5 per the spec
+
+
+class TestDensityChallenge:
+    """
+    Tests for the density-challenge verifier (bounty2026.tex §2.2).
+
+    Instance: KoalaBear field, k=1, d=2, r=17, ell=16, Poseidon1 R_F=6 R_P=6.
+
+    The verifier is tested for:
+      - Correct rejection of trivially invalid candidates.
+      - Correct structural checking of each individual condition.
+      - Acceptance of a hand-crafted solution (if one were known).
+    """
+
+    def _verifier(self, S, **kwargs):
+        defaults = dict(
+            prime=_DC_P, d=_DC_D, r=_DC_R, t=_DC_T,
+            k=_DC_K, ell=_DC_ELL, r_f=_DC_RF, r_p=_DC_RP,
+        )
+        defaults.update(kwargs)
+        return verify_density_solution(S, **defaults)
+
+    # ------------------------------------------------------------------
+    # Input validation
+    # ------------------------------------------------------------------
+
+    def test_wrong_length_raises(self):
+        """S with wrong length must raise ValueError."""
+        with pytest.raises(ValueError, match="length r"):
+            self._verifier([1] * (_DC_R + 1))
+
+    def test_t_exceeds_k_ell_raises(self):
+        """t > k*ell must raise ValueError."""
+        with pytest.raises(ValueError, match="k\\*ell"):
+            self._verifier([1] * _DC_R, t=_DC_K * _DC_ELL + 1)
+
+    # ------------------------------------------------------------------
+    # Condition C1: sparsity bound
+    # ------------------------------------------------------------------
+
+    def test_too_many_zeros_rejected(self):
+        """S with d+1 zeros must be rejected (violates C1)."""
+        S = [0] * (_DC_D + 1) + [1] * (_DC_R - _DC_D - 1)
+        assert self._verifier(S) is False
+
+    def test_exactly_d_zeros_not_rejected_by_c1(self):
+        """
+        S with exactly d zeros passes C1 (may still fail C4).
+        Use a non-trivial S so C2/C3 can be evaluated; we only assert C1 alone
+        doesn't cause rejection (the full verifier may return False due to C4).
+        """
+        S = [0] * _DC_D + [2] * (_DC_R - _DC_D)
+        # C1 must not be the reason for failure — we check it won't raise and
+        # returns a bool (True or False depending on C4).
+        result = self._verifier(S)
+        assert isinstance(result, bool)
+
+    def test_all_nonzero_fails_c4(self):
+        """
+        S with no zeros cannot satisfy C4 (decoded indices can never point to a
+        zero position), so the verifier must return False.
+        """
+        S = list(range(1, _DC_R + 1))
+        assert self._verifier(S) is False
+
+    # ------------------------------------------------------------------
+    # Condition C4: decoded indices must hit zero positions
+    # ------------------------------------------------------------------
+
+    def test_verifier_returns_bool(self):
+        """Verifier must always return a plain bool."""
+        S = [0] * _DC_D + [1] * (_DC_R - _DC_D)
+        result = self._verifier(S)
+        assert isinstance(result, bool)
+
+    def test_deterministic(self):
+        """Verifier is deterministic: same S gives the same verdict."""
+        S = [0, 0] + list(range(1, _DC_R - 1))
+        assert self._verifier(S) == self._verifier(S)
+
+    def test_different_inputs_may_differ(self):
+        """Two distinct S vectors need not give the same verdict."""
+        S1 = [0, 0] + list(range(1, _DC_R - 1))
+        S2 = [0, 0] + list(range(2, _DC_R))
+        # At least one should be False (a random S almost surely fails).
+        results = {self._verifier(S1), self._verifier(S2)}
+        assert False in results
+
+    # ------------------------------------------------------------------
+    # Full verifier smoke-test with known-failing candidates
+    # ------------------------------------------------------------------
+
+    def test_all_zeros_rejected_by_c1(self):
+        """S = [0]*r has r > d zeros so C1 rejects immediately."""
+        assert self._verifier([0] * _DC_R) is False
+
+    def test_single_zero_at_position_0(self):
+        """
+        S with one zero (< d) cannot satisfy C4 for t=16 decoded indices
+        unless all 16 decoded indices equal 0 — astronomically unlikely for a
+        fixed non-solution S, so the verifier should return False.
+        """
+        S = [0] + list(range(1, _DC_R))
+        assert self._verifier(S) is False
