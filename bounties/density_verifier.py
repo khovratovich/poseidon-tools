@@ -11,8 +11,8 @@ The challenge asks for a vector S ∈ F_p^r such that:
   (C4)  S[i_j] = 0  for all j ∈ [t]              (decoded indices hit zeros)
 
 Decode is defined as:
-    Decode(x) = log_ω( x^((p-1)/(r-1)) )  mod (r-1)
-where ω is a primitive (r-1)-th root of unity in F_p.
+    Decode(x) = log_ω( x^((p-1)//r) )  mod r
+where ω is a primitive r-th root of unity in F_p.
 The element 0 ∈ F_p maps to index 0 (special case).
 
 Bounty instance parameters (bounty2026.tex §3.2):
