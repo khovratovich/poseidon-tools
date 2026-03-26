@@ -153,19 +153,13 @@ def verify_density_solution(
         t=t_perm,
         r_f=r_f,
         r_p=r_p,
-        rate=ell,
         mds=mds,
         round_constants=round_constants,
     )
 
-    state = [0] * t_perm
-    for block_start in range(0, r, ell):
-        block = S[block_start: block_start + ell]
-        for i, val in enumerate(block):
-            state[i] = (state[i] + val) % p
-        state = pos.permutation(state)
-
-    hash_output = state[:ell]  # a_0, a_1, …, a_{ell-1}
+    # Compression mode: pad S to exactly t_perm elements and hash in one call.
+    padded_S = ([v % p for v in S] + [0] * t_perm)[:t_perm]
+    hash_output = pos.compression_mode_hash(padded_S, out_length=ell)
 
     # ------------------------------------------------------------------
     # C3: Decode each output word into k indices in Z_r

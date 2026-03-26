@@ -96,7 +96,6 @@ def solve(
         t=T_PERM,
         r_f=RF,
         r_p=RP,
-        rate=ELL,
     )
 
     if verbose:
@@ -117,15 +116,9 @@ def solve(
             for i in range(R)
         ]
 
-        # Step 3: absorb S into Poseidon1 in blocks of ELL elements
-        state = [0] * T_PERM
-        for block_start in range(0, R, ELL):
-            block = S[block_start: block_start + ELL]
-            for i, val in enumerate(block):
-                state[i] = (state[i] + val) % P
-            state = pos.permutation(state)
-
-        hash_output = state[:ELL]  # ELL output words
+        # Step 3: hash S with Poseidon1 in compression mode
+        padded_S = (S + [0] * T_PERM)[:T_PERM]
+        hash_output = pos.compression_mode_hash(padded_S, out_length=ELL)
 
         # Step 4 & 5: decode each output word and check all hit zero positions
         decoded = [decode(a) for a in hash_output]

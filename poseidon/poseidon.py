@@ -119,7 +119,7 @@ class Poseidon:
 
     def permutation(self, state: list) -> list:
         """
-        Apply the Poseidon permutation to a state of t field elements.
+        Apply the Poseidon1 permutation to a state of t field elements.
 
         Args:
             state: List of t integers in GF(prime).
@@ -133,6 +133,8 @@ class Poseidon:
         state = list(state)
         half_f = self.r_f // 2
         rc_idx = 0
+
+
 
         # First half: R_F/2 full rounds
         for _ in range(half_f):
@@ -151,25 +153,32 @@ class Poseidon:
 
         return state
 
-    def hash(self, inputs: list) -> int:
+    def sponge_hash(self, inputs: list, out_length) -> int:
         """
         Hash a list of field elements using the sponge construction.
 
         Inputs are absorbed rate elements at a time; after all inputs are
-        absorbed the first element of the rate portion is returned as the
+        absorbed the first `out_length` elements of the rate portion are returned as the
         digest.
 
         Args:
             inputs: List of integers in GF(prime).
+            out_length: Number of output elements to return (≤ rate).
 
         Returns:
-            A single field element (integer) as the hash digest.
+            A list of field elements (integers) as the hash digest.
         """
         if not inputs:
             raise ValueError("inputs must be non-empty")
 
+        #assert out_length <= self.rate, "out_length cannot exceed rate"
+        if out_length > self.rate:
+            raise ValueError(f"out_length cannot exceed rate ({self.rate}), got {out_length}")
+
         # Initialise state to all-zero
         state = [0] * self.t
+        # put the length into the capacity
+        state[self.rate] = len(inputs) % self.prime
 
         # Absorb phase: process inputs in blocks of `rate`
         for block_start in range(0, len(inputs), self.rate):
@@ -178,5 +187,53 @@ class Poseidon:
                 state[i] = (state[i] + val) % self.prime
             state = self.permutation(state)
 
-        # Squeeze: return first element of rate portion
-        return state[0]
+        # Squeeze: output `out_length` elements
+        return state[:out_length]
+
+    def compression_mode_hash(self, inputs: list, out_length) -> int:
+        """
+        Hash a list of field elements using the compression mode.
+        Only inputs of length exactly `t` are accepted.
+
+        Inputs are put into the   state;
+        then the permutation is applied, then the input added to
+        the output, then `out_length` elements  are returned as the
+        digest.
+
+        Args:
+            inputs: List of integers in GF(prime).
+            out_length: Number of output elements to return (≤ state size).
+
+        Returns:
+            A list of field elements (integers) as the hash digest.
+        """
+        if not inputs:
+            raise ValueError("inputs must be non-empty")
+
+        #assert all inputs are in the field, "inputs must be integers mod prime"
+        if any(not (0 <= x < self.prime) for x in inputs):
+            raise ValueError(f"All inputs must be integers in [0, {self.prime - 1}]")
+
+        #assert out_length <= state size, "out_length cannot exceed state size"
+        if out_length > self.t:
+            raise ValueError(f"out_length cannot exceed state size ({self.t}), got {out_length}")
+
+        #assert len(inputs) = state size, "input length cannot exceed state size"
+        if len(inputs) != self.t:
+            raise ValueError(f"input length must be exactly state size ({self.t}), got {len(inputs)}")
+
+        # Initialise state to all-zero
+        state = [0] * self.t
+        # put the inputs into the first positions of the state
+        for i, val in enumerate(inputs):
+            state[i] = val % self.prime
+
+        # Absorb phase: process inputs in blocks of `rate`
+        state = self.permutation(state)
+
+        # Add the input to the output (feedforward)
+        for i in range(len(inputs)):
+            state[i] = (state[i] + inputs[i]) % self.prime
+
+        # Squeeze: output `out_length` elements
+        return state[:out_length]
