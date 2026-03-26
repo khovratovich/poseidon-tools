@@ -1,18 +1,20 @@
 # poseidon-tools
 
-Pure-Python implementations of the **Poseidon** and **Poseidon2** cryptographic
-hash functions — no SageMath or other heavy dependencies required.
+Pure-Python implementation of the **Poseidon** cryptographic hash function,
+plus verifiers and sample challengers for the
+[Poseidon Initiative 2026 bounties](bounties/docs/bounty2026.tex) —
+no SageMath or other heavy dependencies required.
 
 ## References
 
-- Poseidon: <https://eprint.iacr.org/2019/458>
-- Poseidon2: <https://eprint.iacr.org/2023/323>
+- Poseidon paper: <https://eprint.iacr.org/2019/458>
+- Bounty spec: `bounties/docs/bounty2026.tex`
 
 ---
 
 ## Requirements
 
-- Python 3.8+ (uses `pow(a, -1, prime)` for modular inverse)
+- Python 3.10+ (uses `pow(a, -1, prime)` for modular inverse, `list[int]` type hints)
 - No third-party libraries for the core implementation
 
 Running tests requires [pytest](https://pytest.org):
@@ -25,72 +27,225 @@ pip install pytest
 
 ## Installation
 
-Clone the repository and add it to your Python path:
+Clone the repository and (optionally) create a virtual environment:
 
 ```bash
 git clone https://github.com/your-org/poseidon-tools.git
 cd poseidon-tools
-export PYTHONPATH="$PWD:$PYTHONPATH"
+python -m venv .venv && .venv\Scripts\activate   # Windows
+# python -m venv .venv && source .venv/bin/activate  # Linux/macOS
 ```
 
 ---
 
-## Usage
-
-### Poseidon
+## Poseidon API
 
 ```python
-from poseidon import Poseidon
+from poseidon.poseidon import Poseidon
 
-# BN254 field prime
-p = 21888242871839275222246405745257275088548364400416034343698204186575808495617
+# KoalaBear prime (used in the bounty challenges)
+p = 2130706433  # 2^31 - 2^24 + 1
 
-# Instantiate with standard BN254 Poseidon parameters (t=3, R_F=8, R_P=57, alpha=5)
-pos = Poseidon(prime=p, alpha=5, t=3, r_f=8, r_p=57)
+# Instantiate (t=16, R_F=8, R_P=20, alpha=3)
+pos = Poseidon(prime=p, alpha=3, t=16, r_f=8, r_p=20)
 
-# Hash a list of field elements (sponge construction, returns one field element)
-digest = pos.hash([1, 2])
-print(hex(digest))
+# Compression-mode hash: inputs must have length t; returns list of out_length elements
+outputs = pos.compression_mode_hash(inputs=[0]*16, out_length=16)
 
-# Apply raw permutation to a state of t field elements
-state_out = pos.permutation([0, 1, 2])
+# Sponge hash: absorbs arbitrary-length input, returns one field element
+digest = pos.hash([1, 2, 3])
+
+# Raw permutation: state must have length t
+state_out = pos.permutation([0] * 16)
 ```
 
-#### Parameters
+### Constructor parameters
 
 | Parameter | Description |
 |-----------|-------------|
 | `prime`   | Prime field modulus |
-| `alpha`   | S-box exponent (use `-1` for the inverse S-box x → x⁻¹) |
+| `alpha`   | S-box exponent (use `-1` for the inverse S-box) |
 | `t`       | State width in field elements |
 | `r_f`     | Number of full rounds (must be even) |
 | `r_p`     | Number of partial rounds |
-| `rate`    | Absorb rate (defaults to `t-1`, capacity = 1) |
+| `rate`    | Sponge absorb rate (defaults to `t-1`, capacity = 1) |
 
 ---
 
-### Poseidon2
+## Bounty Challenges
+
+All three challenges use **KoalaBear** (`p = 2^31 - 2^24 + 1 = 2130706433`, `alpha = 3`)
+and Poseidon1 in **compression mode** (`t_perm = 16`, full-state rate).
+The `bounties/` package contains a verifier and a sample challenger for each.
+
+---
+
+### §2.1 — Partial Collision
+
+Find two distinct inputs `x != y` in `F_p^(t_perm-1)` such that the first `t`
+output words of `H(x)` and `H(y)` agree, where
+`H(inputs) = compression_mode_hash([0] + inputs)`.
+
+**Bounty parameters:** `ell=16, R_F=8, R_P=20, t_perm=16`.
+The challenge target is `t = ell` (full output collision).
+The sample challenger targets the tractable case `t = 1`.
+
+#### Verifier
 
 ```python
-from poseidon2 import Poseidon2
+from bounties.partial_collision_verifier import verify_collision_solution
 
-p = 21888242871839275222246405745257275088548364400416034343698204186575808495617
-
-pos2 = Poseidon2(prime=p, alpha=5, t=3, r_f=8, r_p=57)
-
-digest = pos2.hash([1, 2])
-print(hex(digest))
-
-state_out = pos2.permutation([0, 1, 2])
+# x, y — each a list of t_perm-1 = 15 field elements
+ok = verify_collision_solution(
+    x, y,
+    t=1,                    # number of leading output words that must collide
+    prime=2130706433,
+    ell=16, r_f=8, r_p=20, t_perm=16, alpha=3,
+)
 ```
 
-Poseidon2 supports `t ∈ {2, 3, 4}` and any multiple of 4.
+`verify_collision_solution` raises `ValueError` if `x` or `y` have the wrong
+length, or if `x == y`. Returns `True` on success, `False` on failure.
 
-#### Additional Parameters
+#### Sample Challenger (Floyd’s rho method)
 
-| Parameter  | Description |
-|------------|-------------|
-| `d_values` | Diagonal values for the internal linear layer M_I (list of `t` distinct integers ≠ 1). Defaults to `[(-2^i) mod prime for i in 0..t-1]`. |
+```bash
+python -m bounties.partial_collision_sample_challenger [--seed SEED] [--quiet]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--seed` | random | RNG seed for the starting point |
+| `--quiet` | off | suppress per-step output |
+
+Expected cost: ~3·√p ≈ 138 000 hash evaluations.
+
+```python
+from bounties.partial_collision_sample_challenger import solve
+
+x, y, hash_calls = solve(seed=42, verbose=True)
+# x and y are each 15-element lists; hash_calls is the total evaluation count
+```
+
+---
+
+### §2.2 — Density
+
+Find a vector `S` in `F_p^r` with at most `d` zero entries such that the
+`t = k*ell` indices decoded from `H(S)` all land on zero positions of `S`.
+
+**Bounty parameters:** `r=16, d=2, k=1, ell=16, t=16, R_F=6, R_P=6, t_perm=16`.
+The sample challenger targets the tractable case `ell=2` (two decoded indices).
+
+#### Verifier
+
+```python
+from bounties.density_verifier import verify_density_solution
+
+# S — list of r = 16 field elements
+ok = verify_density_solution(
+    S,
+    prime=2130706433,
+    k=1, d=2, r=16, ell=16,
+    r_f=6, r_p=6, t_perm=16, alpha=3,
+)
+```
+
+Returns `True` on success, `False` on failure.
+
+#### Sample Challenger (random search, simplified `ell=2` instance)
+
+```bash
+python -m bounties.density_sample_challenger [--max-attempts N] [--seed SEED] [--quiet]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--max-attempts` | 10000 | maximum random trials |
+| `--seed` | random | RNG seed for reproducibility |
+| `--quiet` | off | suppress per-attempt output |
+
+Expected cost: ~64 attempts (probability (d/r)^2 = 1/64 per trial).
+
+```python
+from bounties.density_sample_challenger import solve
+
+result = solve(seed=43, verbose=True)
+if result is not None:
+    S, attempts = result
+```
+
+Returns `(S, attempts)` where `S` is a 16-element list, or `None` if no
+solution was found within `max_attempts`.
+
+---
+
+### §2.3 — Zero-Test
+
+Find a univariate polynomial `P : F_{p^2} -> F_{p^2}` of degree 1 <= deg <= 7
+such that `P` vanishes at the first hash output: `P(a_0) = 0` in `F_{p^2}`,
+where `(a_0, ..., a_7) := H(P_hat)` and `P_hat` is the 16-element flat
+coefficient vector of `P` over `F_p`.
+
+Extension field: `F_{p^2} = F_p[x] / (x^2 - 3)`. Elements are stored as
+`(c0, c1)` pairs representing `c0 + c1*sqrt(3)`.
+
+**Bounty parameters:** `r=2, d=7, ell=8, s=1, R_F=6, R_P=6, t_perm=16`.
+
+#### Verifier
+
+```python
+from bounties.zerotest_verifier import verify_zerotest_solution
+
+# P_hat — flat list of 16 base-field coefficients [c0_0, c1_0, c0_1, c1_1, ...]
+ok = verify_zerotest_solution(
+    P_hat,
+    prime=2130706433,
+    r=2, d=7, ell=8, s=1,
+    r_f=6, r_p=6, t_perm=16, alpha=3,
+)
+```
+
+A relaxed variant checks only the lowest `k` bits of each component of `P(a_0)`:
+
+```python
+from bounties.zerotest_verifier import verify_zerotest_solution_relaxed
+
+ok = verify_zerotest_solution_relaxed(
+    P_hat, k=4,
+    prime=2130706433,
+    r=2, d=7, ell=8, s=1,
+    r_f=6, r_p=6, t_perm=16, alpha=3,
+)
+```
+
+Both functions return `True` on success, `False` on failure.
+
+#### Sample Challenger (random search, relaxed `k`-bit instance)
+
+```bash
+python -m bounties.zerotest_sample_challenger [--k K] [--max-attempts N] [--seed SEED] [--quiet]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--k` | 4 | low bits of each component of P(a_0) that must be zero |
+| `--max-attempts` | 100000 | maximum random trials |
+| `--seed` | random | RNG seed for reproducibility |
+| `--quiet` | off | suppress per-attempt output |
+
+Expected cost: ~2^(2k) attempts (e.g. ~256 for k=4).
+
+```python
+from bounties.zerotest_sample_challenger import solve
+
+result = solve(k=4, seed=42, verbose=True)
+if result is not None:
+    P_hat, attempts = result
+```
+
+Returns `(P_hat, attempts)` where `P_hat` is a 16-element list, or `None` if
+no solution was found within `max_attempts`.
 
 ---
 
@@ -98,14 +253,20 @@ Poseidon2 supports `t ∈ {2, 3, 4}` and any multiple of 4.
 
 ```
 poseidon/
-  grain_lfsr.py   – 80-bit Grain LFSR for round-constant generation
-  mds_matrix.py   – Cauchy MDS matrix construction and application
-  poseidon.py     – Poseidon permutation and sponge hash
-poseidon2/
-  poseidon2.py    – Poseidon2 permutation and sponge hash
+  grain_lfsr.py      – 80-bit Grain LFSR for round-constant generation
+  mds_matrix.py      – Cauchy MDS matrix construction and application
+  poseidon.py        – Poseidon permutation, sponge hash, compression-mode hash
+bounties/
+  docs/
+    bounty2026.tex   – Poseidon Initiative 2026 bounty specification
+  partial_collision_verifier.py          – §2.1 verifier
+  partial_collision_sample_challenger.py – §2.1 sample solver (Floyd rho)
+  density_verifier.py                    – §2.2 verifier
+  density_sample_challenger.py           – §2.2 sample solver (random search)
+  zerotest_verifier.py                   – §2.3 verifier (exact + relaxed)
+  zerotest_sample_challenger.py          – §2.3 sample solver (random search)
 tests/
   test_poseidon.py
-  test_poseidon2.py
 ```
 
 ---
@@ -115,5 +276,3 @@ tests/
 ```bash
 python -m pytest tests/ -v
 ```
-
-All 58 tests should pass.
