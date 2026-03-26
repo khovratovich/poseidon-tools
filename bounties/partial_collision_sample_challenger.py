@@ -70,7 +70,7 @@ T_PERM = COLLISION_TPERM    # 16  (state width)
 RF     = COLLISION_RF       # 8
 RP     = COLLISION_RP       # 20
 T      = 1                  # number of leading output words that must collide
-
+SEED = 0xc09de4
 
 # ---------------------------------------------------------------------------
 # Rho walk
@@ -80,8 +80,10 @@ def _f(v: int, pos: Poseidon) -> int:
     """
     One step of the rho walk.
 
-    f(v) = H([v])[0]  — hash the single-element input [v] and return the
-    first output word.
+    f(v) = H([SEED, v, 0, ..., 0])[0]  — hash a 15-element input (= t_perm-1)
+    prefixed with the domain-separation constant SEED, then return the first
+    output word.  The 15 elements are zero-padded to t_perm=16 by _hash before
+    being passed to compression_mode_hash.
 
     Args:
         v:   Current field element.
@@ -90,7 +92,7 @@ def _f(v: int, pos: Poseidon) -> int:
     Returns:
         Next field element in the rho sequence.
     """
-    return _hash([v], pos, P, ELL, T_PERM)[0]
+    return _hash([SEED, v] + [0] * (T_PERM - 3), pos, P, ELL, T_PERM)[0]
 
 
 # ---------------------------------------------------------------------------
@@ -219,8 +221,9 @@ def solve(
         # ------------------------------------------------------------------
         # Verify with the official verifier
         # ------------------------------------------------------------------
-        x = [tail_pred]
-        y = [cycle_pred]
+        # Full preimage vectors: [SEED, pred, 0, ..., 0] with t_perm-1=15 elements
+        x = [SEED, tail_pred]  + [0] * (T_PERM - 3)
+        y = [SEED, cycle_pred] + [0] * (T_PERM - 3)
 
         assert verify_collision_solution(
             x, y, t=T,
@@ -235,8 +238,10 @@ def solve(
             print(f"Collision found after {hash_calls:,} hash calls "
                   f"({elapsed * 1000:.2f} ms, {restart} restart(s))")
             print(f"  mu              = {mu}   (cycle entry)")
-            print(f"  x = [tail_pred] = [{tail_pred}]")
-            print(f"  y = [cycle_pred]= [{cycle_pred}]")
+            print(f"  tail_pred       = {tail_pred}")
+            print(f"  cycle_pred      = {cycle_pred}")
+            print(f"  x = [SEED, tail_pred,  0*13] (len={len(x)})")
+            print(f"  y = [SEED, cycle_pred, 0*13] (len={len(y)})")
             print(f"  H(x)[0]         = {hash_x[0]}")
             print(f"  H(y)[0]         = {hash_y[0]}  (match)")
             print(f"  verify_collision_solution(t={T}) -> True  OK")

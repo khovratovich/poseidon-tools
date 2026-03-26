@@ -6,8 +6,8 @@ Reference: bounty2026.tex §2.1
 The challenge asks for two distinct inputs x ≠ y ∈ F_p^* such that:
 
   (C1)  x ≠ y                                (distinct inputs)
-  (C2)  (a_0, …, a_{ℓ-1}) := H(x)           (hash x with Poseidon1)
-  (C3)  (b_0, …, b_{ℓ-1}) := H(y)           (hash y with Poseidon1)
+  (C2)  (a_0, …, a_{ℓ-1}) := H(SEED,x)           (hash x with Poseidon1)
+  (C3)  (b_0, …, b_{ℓ-1}) := H(SEED,y)           (hash y with Poseidon1)
   (C4)  a_i = b_i  for i = 0, 1, …, t-1     (first t output words collide)
 
 Hash construction (Poseidon1 sponge, compression mode):
@@ -46,7 +46,7 @@ COLLISION_RF     = 8            # full rounds  (hardcoded per §3.1)
 COLLISION_RP     = 20           # partial rounds (hardcoded per §3.1)
 COLLISION_TPERM  = 16           # Poseidon1 state width (= ell; full-state rate)
 
-
+SEED = 0xc09de4
 # ---------------------------------------------------------------------------
 # Internal helper
 # ---------------------------------------------------------------------------
@@ -61,12 +61,11 @@ def _hash(
     """
     Hash field elements with the given Poseidon instance using compression mode.
 
-    Inputs shorter than t_perm are zero-padded to exactly t_perm elements before
-    the single compression_mode_hash call.  Inputs longer than t_perm are
-    truncated (callers are responsible for ensuring len(inputs) <= t_perm).
+    Inputs must be `t_perm-1` long. They are prefixed with 0xc09de4 constant.
+
 
     Args:
-        inputs: List of field elements (integers mod prime), len <= t_perm.
+        inputs: List of field elements (integers mod prime), len = t_perm-1.
         pos:    Pre-built Poseidon instance.
         prime:  Field modulus.
         ell:    Number of output words to return.
@@ -100,8 +99,8 @@ def verify_collision_solution(
     Verify an alleged solution to the Poseidon partial collision challenge.
 
     Args:
-        x:               First input vector (non-empty list of field elements).
-        y:               Second input vector (non-empty list of field elements).
+        x:               First input vector (non-empty list of t_perm-1 field elements).
+        y:               Second input vector (non-empty list of t_perm-1 field elements).
         t:               Number of leading output words that must collide (1 ≤ t ≤ ell).
         prime:           Field modulus p.
         ell:             Number of hash output words (= Poseidon rate).
@@ -127,7 +126,10 @@ def verify_collision_solution(
         raise ValueError(f"t={t} must satisfy 1 <= t <= ell={ell}")
     if ell > t_perm:
         raise ValueError(f"ell={ell} must not exceed t_perm={t_perm}")
-
+    if len(x) != t_perm - 1:
+        raise ValueError(f"x must have length t_perm-1={t_perm - 1}, got {len(x)}")
+    if len(y) != t_perm - 1:
+        raise ValueError(f"y must have length t_perm-1={t_perm - 1}, got {len(y)}")
     p = prime
 
     # ------------------------------------------------------------------
