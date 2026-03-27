@@ -65,6 +65,27 @@ Challenge: find multivariate polynomial  $P:\left(\mathbb{F}^r\right)^s\mapsto\m
 P(a_0,a_1, \ldots,a_{s-1})&=\mathbf{0}\in\mathbb{F}^r\label{eq:cond-zero}
 \end{align}
 where $\widehat{P}$ is the vector of the coefficients of $P$ expressed as elements of the base field $\mathbb{F}$. The length of  $\widehat{P}$ in the base field units is then $(d+1)r$ for $s=1$ and about $\frac{r(s+1)^d}{d!}$ for bigger $s$.
+
+
+\subsection{CICO challenge}
+\begin{itemize}
+    \item
+\textbf{Attacked primitive:} permutation function
+$P:\mathbb{F}_p^{t}\mapsto \mathbb{F}_p^{t}$.
+\item
+\textbf{Parameters:} $k\in\mathbb{Z}^{+}$ with condition $k\leq t$. Constants
+$C_1,C_2,\ldots,C_{2k}\in\mathbb{F}_p$.
+
+\end{itemize}
+Challenge: find input $(x_{k+1},x_{k+2},\ldots,x_t)\in\mathbb{F}_p^{t-2}$
+such that
+\begin{equation}
+P(C_1,C_2, \ldots,C_k,x_{k+1},x_{k+2})=(C_{k+1},C_{k+2},\ldots,C_{2k},*,\ldots,*)
+\in\mathbb{F}^r\label{eq:cico-k}
+\end{equation}
+where $*$ means arbitrary value.
+
+
 \begin{comment}
 \subsection{Multi-target collision challenge}
 Parameters:
@@ -178,6 +199,24 @@ The best attack then has success rate about
 $$
 s_r= \frac{d}{p^r}\approx 2^{-59.2}
 $$
+
+
+\subsection{CICO problem}
+Instance parameters:
+\begin{itemize}
+    \item $p=2^{31}-2^{24}+1$, $k=2$, $t=16$.
+    \item $P$ is Poseidon1 permutation in the compression mode,
+     $R_F=6$ full rounds and $R_P\in\{8,10,12\}$ partial rounds.
+     \item
+     $$
+     C_1=0xc09de4,\quad C_2=0xee6282,\quad C_3=C_4 = 0.
+     $$
+\end{itemize}
+The best attack then has success rate about
+$$
+s_r= \frac{1}{p^r}\approx 2^{-62}
+$$
+
 \begin{comment}
 \subsection{Multi-target collision}
 
