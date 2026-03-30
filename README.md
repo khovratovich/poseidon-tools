@@ -74,9 +74,11 @@ state_out = pos.permutation([0] * 16)
 
 ## Bounty Challenges
 
-All three challenges use **KoalaBear** (`p = 2^31 - 2^24 + 1 = 2130706433`, `alpha = 3`)
-and Poseidon1 in **compression mode** (`t_perm = 16`, full-state rate).
+All four challenges use **KoalaBear** (`p = 2^31 - 2^24 + 1 = 2130706433`, `alpha = 3`).
 The `bounties/` package contains a verifier and a sample challenger for each.
+
+- **Partial Collision, Density, Zero-Test:** standard Poseidon1 in **compression mode** (`t_perm = 16`, full-state rate)
+- **CICO:** a modified Poseidon permutation with an **upfront linear layer**, exposed as `permutation_plus_linear`
 
 ---
 
@@ -249,6 +251,81 @@ no solution was found within `max_attempts`.
 
 ---
 
+### §2.4 — CICO
+
+Find free inputs `(x_{k+1}, ..., x_t)` in `F_p^(t-k)` such that, with
+`s = (C_1, ..., C_k, x_{k+1}, ..., x_t)`, the first `k` output words of
+`P⁺(s)` match the prescribed constants `C_{k+1}, ..., C_{2k}`. Here `P⁺`
+denotes the repository's modified Poseidon permutation that applies an
+additional linear layer first via `permutation_plus_linear`.
+
+**Bounty parameters:** `k=2, t=16, R_F=6, R_P in {8, 10, 12}` with fixed
+constants `C_1 = 0xC09DE4`, `C_2 = 0xEE6282`, `C_3 = C_4 = 0`.
+
+#### Verifier
+
+```python
+from bounties.cico_verifier import verify_cico_solution
+
+# free_inputs — list of t-k = 14 field elements
+ok = verify_cico_solution(
+  free_inputs,
+  prime=2130706433,
+  alpha=3,
+  k=2, t=16,
+  r_f=6, r_p=8,
+)
+```
+
+A relaxed variant checks only the lowest `m` bits of each constrained output
+difference:
+
+```python
+from bounties.cico_verifier import verify_cico_solution_relaxed
+
+ok = verify_cico_solution_relaxed(
+  free_inputs, m=5,
+  prime=2130706433,
+  alpha=3,
+  k=2, t=16,
+  r_f=6, r_p=8,
+)
+```
+
+Both functions use `Poseidon.permutation_plus_linear()` internally. The exact
+verifier returns `True` only for full matches; the relaxed verifier returns
+`True` when each constrained difference is divisible by `2^m`.
+
+#### Sample Challenger (random search, relaxed `m`-bit instance)
+
+```bash
+python -m bounties.cico_sample_challenger [--m M] [--k K] [--rp RP] [--max-attempts N] [--seed SEED] [--quiet]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--m` | 5 | low bits of each constrained output difference that must be zero |
+| `--k` | 2 | number of constrained input/output words |
+| `--rp` | 8 | number of partial rounds |
+| `--max-attempts` | 10000000 | maximum random trials |
+| `--seed` | random | RNG seed for reproducibility |
+| `--quiet` | off | suppress per-attempt output |
+
+Expected cost: ~`2^(m*k)` attempts (e.g. ~1024 for `m=5, k=2`).
+
+```python
+from bounties.cico_sample_challenger import solve
+
+result = solve(m=5, seed=42, verbose=True)
+if result is not None:
+  free_inputs, attempts = result
+```
+
+Returns `(free_inputs, attempts)` where `free_inputs` is a 14-element list, or
+`None` if no solution was found within `max_attempts`.
+
+---
+
 ## Repository Layout
 
 ```
@@ -265,6 +342,8 @@ bounties/
   density_sample_challenger.py           – §2.2 sample solver (random search)
   zerotest_verifier.py                   – §2.3 verifier (exact + relaxed)
   zerotest_sample_challenger.py          – §2.3 sample solver (random search)
+  cico_verifier.py                       – §2.4 verifier (exact + relaxed, plus-linear Poseidon)
+  cico_sample_challenger.py              – §2.4 sample solver (random search)
 tests/
   test_poseidon.py
 ```

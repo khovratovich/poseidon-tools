@@ -20,7 +20,7 @@ Challenge (relaxed, default m=5):
     Find free inputs (x_3, …, x_16) ∈ F_p^{t-k} = F_p^14 such that, writing
 
         s = (C_1, C_2, x_3, …, x_16)
-        y = Poseidon::permutation(s)
+        y = Poseidon::permutation_plus_linear(s)
 
     the lowest m bits of each constrained output residue are zero:
 
@@ -30,7 +30,7 @@ Strategy:
     Repeat until success:
       1. Draw t-k random field elements as free_inputs.
       2. Build the full state s = [C_1, …, C_k] + free_inputs.
-      3. Apply Poseidon::permutation(s) to get output y.
+    3. Apply Poseidon::permutation_plus_linear(s) to get output y.
       4. Accept if (y[i] - target[i]) & mask == 0 for all i in [k].
       5. Double-check via verify_cico_solution_relaxed() before returning.
 
@@ -95,7 +95,7 @@ def solve(
         Repeat up to max_attempts times:
           1. Draw t-k random field elements as the free portion of the input.
           2. Build the full state s = [C_1, …, C_k] + free_inputs.
-          3. Apply Poseidon::permutation(s) → output y.
+          3. Apply Poseidon::permutation_plus_linear(s) → output y.
           4. Accept if (y[i] - target[i]) & mask == 0  for all i in [k].
           5. Double-check via verify_cico_solution_relaxed() before returning.
 
@@ -168,7 +168,7 @@ def solve(
         # Step 2 & 3: build full state and apply permutation
         # ----------------------------------------------------------------
         state_in = input_prefix + free_inputs
-        y = pos.permutation(state_in)
+        y = pos.permutation_plus_linear(state_in)
 
         # ----------------------------------------------------------------
         # Step 4: check lowest m bits of each constrained output difference

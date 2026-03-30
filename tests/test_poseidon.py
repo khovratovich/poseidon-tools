@@ -183,6 +183,16 @@ class TestPoseidonPermutation:
         # The zero state should not stay at zero after a full permutation
         assert not all(x == 0 for x in result)
 
+    def test_permutation_plus_linear_length_preserving(self):
+        pos = self._make_poseidon()
+        result = pos.permutation_plus_linear([1, 2, 3])
+        assert len(result) == T
+
+    def test_permutation_plus_linear_differs_from_standard(self):
+        pos = self._make_poseidon()
+        state = [1, 2, 3]
+        assert pos.permutation_plus_linear(state) != pos.permutation(state)
+
 
 # ---------------------------------------------------------------------------
 # Poseidon hash tests

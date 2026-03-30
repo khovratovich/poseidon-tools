@@ -113,28 +113,16 @@ class Poseidon:
         state = apply_mds(state, self.mds, self.prime)
         return state
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-
-    def permutation(self, state: list) -> list:
-        """
-        Apply the Poseidon1 permutation to a state of t field elements.
-
-        Args:
-            state: List of t integers in GF(prime).
-
-        Returns:
-            Permuted state as a list of t integers.
-        """
+    def _permutation_impl(self, state: list, initial_linear: bool = False) -> list:
         if len(state) != self.t:
             raise ValueError(f"State must have {self.t} elements, got {len(state)}")
 
         state = list(state)
+        if initial_linear:
+            state = apply_mds(state, self.mds, self.prime)
+
         half_f = self.r_f // 2
         rc_idx = 0
-
-
 
         # First half: R_F/2 full rounds
         for _ in range(half_f):
@@ -152,6 +140,37 @@ class Poseidon:
             rc_idx += 1
 
         return state
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def permutation(self, state: list) -> list:
+        """
+        Apply the Poseidon1 permutation to a state of t field elements.
+
+        Args:
+            state: List of t integers in GF(prime).
+
+        Returns:
+            Permuted state as a list of t integers.
+        """
+        return self._permutation_impl(state)
+
+    def permutation_plus_linear(self, state: list) -> list:
+        """
+        Apply the Poseidon permutation with an initial linear layer.
+
+        This variant first applies the MDS matrix to the input state, then
+        runs the standard Poseidon round schedule.
+
+        Args:
+            state: List of t integers in GF(prime).
+
+        Returns:
+            Permuted state as a list of t integers.
+        """
+        return self._permutation_impl(state, initial_linear=True)
 
     def sponge_hash(self, inputs: list, out_length) -> int:
         """

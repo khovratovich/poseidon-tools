@@ -18,7 +18,7 @@ where all remaining output positions are unconstrained ("*").
 Conditions verified:
     (C1)  free_inputs has length t − k                      (correct size)
     (C2)  s := [C_1, …, C_k, x_{k+1}, …, x_t]             (build full state)
-    (C3)  y := Poseidon::permutation(s)                     (apply permutation)
+    (C3)  y := Poseidon::permutation_plus_linear(s)         (apply permutation)
     (C4)  y[i] == C_{k+i+1} % p  for i = 0, …, k−1        (output matches)
 
 Bounty instance parameters (bounty2026.tex §3.4):
@@ -78,13 +78,14 @@ def verify_cico_solution(
     The solution is provided as the free-input portion
     (x_{k+1}, …, x_t) ∈ F_p^{t−k}.  The verifier prepends the fixed input
     constants C_1, …, C_k to form the full permutation state, applies
-    Poseidon::permutation(), and checks that the first k output words equal
+    Poseidon::permutation_plus_linear(), and checks that the first k output
+    words equal
     the prescribed output constants C_{k+1}, …, C_{2k}.
 
     Conditions checked:
         (C1)  len(free_inputs) == t − k
         (C2)  s := [C_1, …, C_k] + free_inputs   (mod p)
-        (C3)  y := Poseidon::permutation(s)
+        (C3)  y := Poseidon::permutation_plus_linear(s)
         (C4)  y[i] == constants[k + i] % p   for i = 0, …, k−1
 
     Args:
@@ -149,7 +150,7 @@ def verify_cico_solution(
         mds=mds,
         round_constants=round_constants,
     )
-    state_out = pos.permutation(state_in)
+    state_out = pos.permutation_plus_linear(state_in)
 
     # ------------------------------------------------------------------
     # C4: first k output words must match C_{k+1}, …, C_{2k}
@@ -255,7 +256,7 @@ def verify_cico_solution_relaxed(
         mds=mds,
         round_constants=round_constants,
     )
-    state_out = pos.permutation(state_in)
+    state_out = pos.permutation_plus_linear(state_in)
 
     # ------------------------------------------------------------------
     # Relaxed C4: lowest m bits of each (y[i] − target) must be zero
