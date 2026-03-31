@@ -25,7 +25,7 @@ Bounty instance parameters (bounty2026.tex §3.4):
     p    = 2^31 − 2^24 + 1  (KoalaBear prime)
     k    = 2    (number of constrained input / output words)
     t    = 16   (Poseidon permutation state width)
-    R_F  = 6,   R_P ∈ {8, 10, 12}
+    R_F  = 6,   R_P ∈ {6, 8, 10}
 
 Fixed constants:
     C_1 = 0xc09de4,  C_2 = 0xee6282,  C_3 = C_4 = 0
@@ -49,7 +49,7 @@ CICO_ALPHA  = 3            # S-box exponent
 CICO_K      = 2            # constrained input / output words
 CICO_T      = 16           # Poseidon permutation state width
 CICO_RF     = 6
-CICO_RP     = 8            # bounty offers R_P ∈ {8, 10, 12}; default = 8 (hardest)
+CICO_RP     = 8            # bounty offers R_P ∈ {6, 8, 10}; default = 8 (hardest)
 
 # Fixed constants C_1, C_2, …, C_{2k}  (indexed 0-based: constants[0] = C_1)
 # C_1 = 0xc09de4,  C_2 = 0xee6282,  C_3 = C_4 = 0
