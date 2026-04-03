@@ -92,8 +92,8 @@ def verify_collision_solution(
     r_p: int = COLLISION_RP,
     t_perm: int = COLLISION_TPERM,
     alpha: int = COLLISION_ALPHA,
-    mds: list | None = None,
-    round_constants: list | None = None,
+    mds: list[list[int]] | None = None,
+    round_constants: list[int] | None = None,
 ) -> bool:
     """
     Verify an alleged solution to the Poseidon partial collision challenge.

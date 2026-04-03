@@ -69,8 +69,8 @@ def verify_cico_solution(
     r_f: int = CICO_RF,
     r_p: int = CICO_RP,
     constants: list[int] | None = None,
-    mds: list | None = None,
-    round_constants: list | None = None,
+    mds: list[list[int]] | None = None,
+    round_constants: list[int] | None = None,
 ) -> bool:
     """
     Verify an alleged solution to the Poseidon CICO challenge.
@@ -171,8 +171,8 @@ def verify_cico_solution_relaxed(
     r_f: int = CICO_RF,
     r_p: int = CICO_RP,
     constants: list[int] | None = None,
-    mds: list | None = None,
-    round_constants: list | None = None,
+    mds: list[list[int]] | None = None,
+    round_constants: list[int] | None = None,
 ) -> bool:
     """
     Relaxed verifier for the Poseidon CICO challenge.
