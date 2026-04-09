@@ -41,6 +41,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from poseidon.poseidon import Poseidon
+from poseidon.mds_matrix import verify_mds_matrix, generate_mds_matrix
 
 # ---------------------------------------------------------------------------
 # Bounty instance constants
@@ -237,13 +238,17 @@ def verify_zerotest_solution(
     # Poseidon1 compression mode: state width = t_perm = ell*r.
     # P_hat has exactly t_perm elements → absorbed in a single permutation call.
     # ------------------------------------------------------------------
+    _mds = mds if mds is not None else generate_mds_matrix(t_perm, p)
+    if not verify_mds_matrix(_mds, p):
+        return False
+
     pos = Poseidon(
         prime=p,
         alpha=alpha,
         t=t_perm,
         r_f=r_f,
         r_p=r_p,
-        mds=mds,
+        mds=_mds,
         round_constants=round_constants,
     )
 
@@ -377,13 +382,17 @@ def verify_zerotest_solution_relaxed(
     # ------------------------------------------------------------------
     # C2: hash P̂ with Poseidon1
     # ------------------------------------------------------------------
+    _mds = mds if mds is not None else generate_mds_matrix(t_perm, p)
+    if not verify_mds_matrix(_mds, p):
+        return False
+
     pos = Poseidon(
         prime=p,
         alpha=alpha,
         t=t_perm,
         r_f=r_f,
         r_p=r_p,
-        mds=mds,
+        mds=_mds,
         round_constants=round_constants,
     )
 

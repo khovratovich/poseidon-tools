@@ -39,6 +39,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from poseidon.poseidon import Poseidon
+from poseidon.mds_matrix import verify_mds_matrix, generate_mds_matrix
 
 # ---------------------------------------------------------------------------
 # Bounty instance constants
@@ -141,13 +142,17 @@ def verify_cico_solution(
     # ------------------------------------------------------------------
     # C3: apply Poseidon permutation  y = P(s)
     # ------------------------------------------------------------------
+    _mds = mds if mds is not None else generate_mds_matrix(t, p)
+    if not verify_mds_matrix(_mds, p):
+        return False
+
     pos = Poseidon(
         prime=p,
         alpha=alpha,
         t=t,
         r_f=r_f,
         r_p=r_p,
-        mds=mds,
+        mds=_mds,
         round_constants=round_constants,
     )
     state_out = pos.permutation_plus_linear(state_in)
@@ -247,13 +252,17 @@ def verify_cico_solution_relaxed(
         + [int(x) % p for x in free_inputs]
     )
 
+    _mds = mds if mds is not None else generate_mds_matrix(t, p)
+    if not verify_mds_matrix(_mds, p):
+        return False
+
     pos = Poseidon(
         prime=p,
         alpha=alpha,
         t=t,
         r_f=r_f,
         r_p=r_p,
-        mds=mds,
+        mds=_mds,
         round_constants=round_constants,
     )
     state_out = pos.permutation_plus_linear(state_in)

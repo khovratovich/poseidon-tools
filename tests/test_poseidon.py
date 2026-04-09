@@ -300,9 +300,9 @@ class TestVerifyMDSMatrix:
     def test_cauchy_mds_t3_bn254_minpoly_fails(self):
         # The BN254 Cauchy t=3 matrix has an eigenvalue in GF(p), making its
         # characteristic polynomial reducible.  The minpoly check therefore
-        # fails and verify_mds_matrix returns False.
+        # fails.
         mds = generate_mds_matrix(3, BN254_P)
-        assert verify_mds_matrix(mds, BN254_P) is False
+        assert _check_minpoly(mds, 3, BN254_P) is False
 
 
 # ---------------------------------------------------------------------------
@@ -861,6 +861,7 @@ class TestPlonky3MatrixSecurity:
         GF(p), so the Poseidon minpoly criterion fails here too.
         """
         assert _check_minpoly(self._make_m24(), 24, KOALABEAR_P) is False
+
 
 
 # ---------------------------------------------------------------------------

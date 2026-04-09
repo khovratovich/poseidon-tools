@@ -32,6 +32,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from poseidon.poseidon import Poseidon
+from poseidon.mds_matrix import verify_mds_matrix, generate_mds_matrix
 
 # ---------------------------------------------------------------------------
 # Bounty instance constants
@@ -147,13 +148,17 @@ def verify_density_solution(
     # C2: hash S with Poseidon1 to obtain ell output words
     # Poseidon1 compression mode: state width = t_perm
     # ------------------------------------------------------------------
+    _mds = mds if mds is not None else generate_mds_matrix(t_perm, p)
+    if not verify_mds_matrix(_mds, p):
+        return False
+
     pos = Poseidon(
         prime=p,
         alpha=alpha,
         t=t_perm,
         r_f=r_f,
         r_p=r_p,
-        mds=mds,
+        mds=_mds,
         round_constants=round_constants,
     )
 

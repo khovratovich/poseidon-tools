@@ -582,7 +582,7 @@ def verify_mds_matrix(mds: list, prime: int) -> bool:
     Verify that an MDS matrix satisfies the Poseidon security criteria.
 
     Checks:
-      1. Minimal polynomial condition: char poly of M^i is irreducible for i=1..2t
+      1. (Sufficient) Minimal polynomial condition: char poly of M^i is irreducible for i=1..2t
       2. Algorithm 1: no subspace trail type 1
       3. Algorithm 2: no invariant subspace (starting from e_0)
       4. Algorithm 3: algorithm 2 holds for M^r, r=2..4t
@@ -592,11 +592,11 @@ def verify_mds_matrix(mds: list, prime: int) -> bool:
         prime: Prime field modulus.
 
     Returns:
-        True if all checks pass, False otherwise.
+        True if check 1 passes or checks 2-4 pass, False otherwise.
     """
     t = len(mds)
-    if not _check_minpoly(mds, t, prime):
-        return False
+    if _check_minpoly(mds, t, prime):
+        return True
     if not _algorithm_1(mds, t, prime)[0]:
         return False
     if not _algorithm_2(mds, t, prime)[0]:
