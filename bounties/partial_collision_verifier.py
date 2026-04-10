@@ -75,7 +75,7 @@ def _hash(
     Returns:
         List of ell integers — the first ell elements of the compressed output.
     """
-    padded = ([v % prime for v in inputs] + [0] * t_perm)[:t_perm]
+    padded = ([SEED]+ [v % prime for v in inputs] )[:t_perm]
     return pos.compression_mode_hash(padded, out_length=ell)
 
 
@@ -165,3 +165,5 @@ def verify_collision_solution(
     # C4: first t output words must match
     # ------------------------------------------------------------------
     return hash_x[:t] == hash_y[:t]
+
+
