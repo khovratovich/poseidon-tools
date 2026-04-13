@@ -172,6 +172,9 @@ class Poseidon:
         """
         return self._permutation_impl(state, initial_linear=True)
 
+    def hash(self, inputs: list) -> int:
+        return self.sponge_hash(inputs, 1)[0]
+
     def sponge_hash(self, inputs: list, out_length) -> int:
         """
         Hash a list of field elements using the sponge construction.
