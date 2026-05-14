@@ -32,6 +32,8 @@ def verify_t3_collision() -> bool:
     """
     Verify a known t=3 partial collision solution.
 
+    By Izan Beltran, Simon-Philipp Merz, Àlex Rodríguez García and Matteo Scarlata
+
     Checks that the two hardcoded inputs X and Y satisfy
     verify_collision_solution with t=3, RF=8, RP=20, T_PERM=16.
 
