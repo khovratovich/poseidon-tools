@@ -50,9 +50,9 @@ class Poseidon:
         t: int,
         r_f: int,
         r_p: int,
-        rate: int = None,
-        mds: list = None,
-        round_constants: list = None,
+        rate: int | None = None,
+        mds: list[list[int]] | None = None,
+        round_constants: list[int] | None = None,
     ):
         if r_f % 2 != 0:
             raise ValueError("r_f must be even")
@@ -172,7 +172,10 @@ class Poseidon:
         """
         return self._permutation_impl(state, initial_linear=True)
 
-    def sponge_hash(self, inputs: list, out_length) -> int:
+    def hash(self, inputs: list[int]) -> int:
+        return self.sponge_hash(inputs, 1)[0]
+
+    def sponge_hash(self, inputs: list[int], out_length: int) -> list[int]:
         """
         Hash a list of field elements using the sponge construction.
 
@@ -209,7 +212,7 @@ class Poseidon:
         # Squeeze: output `out_length` elements
         return state[:out_length]
 
-    def compression_mode_hash(self, inputs: list, out_length) -> int:
+    def compression_mode_hash(self, inputs: list[int], out_length: int) -> list[int]:
         """
         Hash a list of field elements using the compression mode.
         Only inputs of length exactly `t` are accepted.

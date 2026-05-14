@@ -140,8 +140,8 @@ def verify_zerotest_solution(
     t_perm: int = ZEROTEST_TPERM,
     alpha: int = ZEROTEST_ALPHA,
     ext_beta: int = _EXT_BETA,
-    mds: list | None = None,
-    round_constants: list | None = None,
+    mds: list[list[int]] | None = None,
+    round_constants: list[int] | None = None,
 ) -> bool:
     """
     Verify an alleged solution to the Poseidon zero-test challenge.
@@ -283,8 +283,8 @@ def verify_zerotest_solution_relaxed(
     t_perm: int = ZEROTEST_TPERM,
     alpha: int = ZEROTEST_ALPHA,
     ext_beta: int = _EXT_BETA,
-    mds: list | None = None,
-    round_constants: list | None = None,
+    mds: list[list[int]] | None = None,
+    round_constants: list[int] | None = None,
 ) -> bool:
     """
     Relaxed verifier for the Poseidon zero-test challenge.

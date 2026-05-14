@@ -90,7 +90,7 @@ def decode(x: int, prime: int = DENSITY_P, r: int = DENSITY_R) -> int:
 
 
 def verify_density_solution(
-    S: list,
+    S: list[int],
     prime: int = DENSITY_P,
     d: int = DENSITY_D,
     r: int = DENSITY_R,
@@ -101,8 +101,8 @@ def verify_density_solution(
     r_p: int = DENSITY_RP,
     t_perm: int = DENSITY_TPERM,
     alpha: int = DENSITY_ALPHA,
-    mds=None,
-    round_constants=None,
+    mds: list[list[int]] | None = None,
+    round_constants: list[int] | None = None,
 ) -> bool:
     """
     Verify an alleged solution to the Poseidon density challenge.
